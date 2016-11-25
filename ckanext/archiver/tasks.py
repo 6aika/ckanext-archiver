@@ -16,10 +16,6 @@ from requests.packages import urllib3
 
 from ckan.lib.celery_app import celery
 from ckan import plugins as p
-try:
-    from ckanext.archiver import settings
-except ImportError:
-    from ckanext.archiver import default_settings as settings
 from ckanext.archiver import interfaces as archiver_interfaces
 
 import logging
@@ -71,6 +67,8 @@ class ArchiveError(ArchiverErrorAfterDownloadStarted):
     pass
 class ChooseNotToDownload(ArchiverErrorAfterDownloadStarted):
     pass
+class NotChanged(ArchiverErrorAfterDownloadStarted):
+    pass
 class LinkCheckerError(ArchiverError):
     pass
 class LinkInvalidError(LinkCheckerError):
@@ -88,6 +86,9 @@ def update_resource(ckan_ini_filepath, resource_id, queue='bulk'):
     '''
     Archive a resource.
     '''
+    load_config(ckan_ini_filepath)
+    register_translator()
+
     log.info('Starting update_resource task: res_id=%r queue=%s', resource_id, queue)
 
     # HACK because of race condition #1481
@@ -97,7 +98,7 @@ def update_resource(ckan_ini_filepath, resource_id, queue='bulk'):
     # Also put try/except around it is easier to monitor ckan's log rather than
     # celery's task status.
     try:
-        result = _update_resource(ckan_ini_filepath, resource_id, queue)
+        result = _update_resource(resource_id, queue, log)
         return result
     except Exception, e:
         if os.environ.get('DEBUG'):
@@ -112,34 +113,48 @@ def update_package(ckan_ini_filepath, package_id, queue='bulk'):
     '''
     Archive a package.
     '''
-    from ckan import model
-
-    get_action = toolkit.get_action
-
     load_config(ckan_ini_filepath)
     register_translator()
 
-    log.info('Starting update_package task: package_id=%r queue=%s', package_id, queue)
+
+    log.info('Starting update_package task: package_id=%r queue=%s',
+             package_id, queue)
 
     # Do all work in a sub-routine since it can then be tested without celery.
     # Also put try/except around it is easier to monitor ckan's log rather than
     # celery's task status.
     try:
-        context_ = {'model': model, 'ignore_auth': True, 'session': model.Session}
-        package = get_action('package_show')(context_, {'id': package_id})
-
-        for resource in package['resources']:
-            resource_id = resource['id']
-            _update_resource(ckan_ini_filepath, resource_id, queue)
+        _update_package(package_id, queue, log)
     except Exception, e:
         if os.environ.get('DEBUG'):
             raise
-        # Any problem at all is logged and reraised so that celery can log it too
-        log.error('Error occurred during archiving package: %s\nPackage: %r %r',
-                  e, package_id, package['name'] if 'package' in dir() else '')
+        # Any problem at all is logged and reraised so that celery can log it
+        # too
+        log.error('Error occurred during archiving package: %s\nPackage: %s',
+                  e, package_id)
         raise
 
-    notify_package(package, queue, ckan_ini_filepath)
+
+def _update_package(package_id, queue, log):
+    from ckan import model
+
+    get_action = toolkit.get_action
+
+    num_archived = 0
+    context_ = {'model': model, 'ignore_auth': True, 'session': model.Session}
+    package = get_action('package_show')(context_, {'id': package_id})
+
+    for resource in package['resources']:
+        resource_id = resource['id']
+        res = _update_resource(resource_id, queue, log)
+        if res:
+            num_archived += 1
+
+    if num_archived > 0:
+        log.info("Notifying package as %d items were archived", num_archived)
+        notify_package(package, queue)
+    else:
+        log.info("Not notifying package as 0 items were archived")
 
     # Refresh the index for this dataset, so that it contains the latest
     # archive info. However skip it if there are downstream plugins that will
@@ -164,7 +179,7 @@ def _update_search_index(package_id, log):
     log.info('Search indexed %s', package['name'])
 
 
-def _update_resource(ckan_ini_filepath, resource_id, queue):
+def _update_resource(resource_id, queue, log):
     """
     Link check and archive the given resource.
     If successful, updates the archival table with the cache_url & hash etc.
@@ -186,13 +201,13 @@ def _update_resource(ckan_ini_filepath, resource_id, queue):
         }
     If not successful, returns None.
     """
-
     load_config(ckan_ini_filepath)
     register_translator()
 
     from ckan import model
     from pylons import config
     from ckan.plugins import toolkit
+    from ckanext.archiver import default_settings as settings
 
     get_action = toolkit.get_action
 
@@ -217,16 +232,24 @@ def _update_resource(ckan_ini_filepath, resource_id, queue):
             archive_result.get('cache_filename') if archive_result else None)
 
     # Download
+    try_as_api = False
+    requires_archive = True
+
     log.info("Attempting to download resource: %s" % resource['url'])
     download_result = None
-    from ckanext.archiver.model import Status
+    from ckanext.archiver.model import Status, Archival
     download_status_id = Status.by_text('Archived successfully')
     context = {
         'site_url': config.get('ckan.site_url_internally') or config['ckan.site_url'],
         'cache_url_root': config.get('ckanext-archiver.cache_url_root'),
+        'previous': Archival.get_for_resource(resource_id)
         }
     try:
         download_result = download(context, resource)
+    except NotChanged, e:
+        download_status_id = Status.by_text('Content has not changed')
+        try_as_api = False
+        requires_archive = False
     except LinkInvalidError, e:
         download_status_id = Status.by_text('URL invalid')
         try_as_api = False
@@ -263,6 +286,10 @@ def _update_resource(ckan_ini_filepath, resource_id, queue):
             _save(download_status_id, e, resource, *extra_args)
             return
 
+    if not requires_archive:
+        # We don't need to archive if the remote content has not changed
+        return None
+
     # Archival
     log.info('Attempting to archive resource')
     try:
@@ -274,13 +301,14 @@ def _update_resource(ckan_ini_filepath, resource_id, queue):
 
     # Success
     _save(Status.by_text('Archived successfully'), '', resource,
-          download_result['url_redirected_to'], download_result, archive_result)
+            download_result['url_redirected_to'], download_result, archive_result)
+
     # The return value is only used by tests. Serialized for Celery.
     return json.dumps(dict(download_result, **archive_result))
 
 
 def download(context, resource, url_timeout=30,
-             max_content_length=settings.MAX_CONTENT_LENGTH,
+             max_content_length='default',
              method='GET'):
     '''Given a resource, tries to download it.
 
@@ -304,6 +332,11 @@ def download(context, resource, url_timeout=30,
       mimetype, size, hash, headers, saved_file, url_redirected_to
     '''
 
+    from ckanext.archiver import default_settings as settings
+
+    if max_content_length == 'default':
+        max_content_length = settings.MAX_CONTENT_LENGTH
+
     url = resource['url']
 
     url = tidy_url(url)
@@ -318,8 +351,16 @@ def download(context, resource, url_timeout=30,
     # May raise DownloadException
     method_func = {'GET': requests.get, 'POST': requests.post}[method]
     res = requests_wrapper(log, method_func, url, timeout=url_timeout,
-                           stream=True, headers=headers)
+                           stream=True, headers=headers,
+                           verify=verify_https(),
+                           )
     url_redirected_to = res.url if url != res.url else None
+
+    if context.get('previous') and ('etag' in res.headers):
+        if context.get('previous').etag == res.headers['etag']:
+            log.info("ETAG matches, not downloading content")
+            raise NotChanged("etag suggests content has not changed")
+
     if not res.ok:  # i.e. 404 or something
         raise DownloadError('Server reported status error: %s %s' %
                             (res.status_code, res.reason),
@@ -413,6 +454,7 @@ def archive_resource(context, resource, log, result=None, url_timeout=30):
 
     Returns: {cache_filepath, cache_url}
     """
+    from ckanext.archiver import default_settings as settings
     relative_archive_path = os.path.join(resource['id'][:2], resource['id'])
     archive_dir = os.path.join(settings.ARCHIVE_DIR, relative_archive_path)
     if not os.path.exists(archive_dir):
@@ -459,7 +501,7 @@ def notify_resource(resource, queue, cache_filepath):
                                         cache_filepath=cache_filepath)
 
 
-def notify_package(package, queue, cache_filepath):
+def notify_package(package, queue):
     '''
     Broadcasts an IPipe notification that a package archival has taken place
     (or at least the archival object is changed somehow). e.g.
@@ -467,13 +509,17 @@ def notify_package(package, queue, cache_filepath):
     '''
     archiver_interfaces.IPipe.send_data('package-archived',
                                         package_id=package['id'],
-                                        queue=queue,
-                                        cache_filepath=cache_filepath)
+                                        queue=queue)
 
 
 def get_plugins_waiting_on_ipipe():
     return [observer.name for observer in
             p.PluginImplementations(archiver_interfaces.IPipe)]
+
+
+def verify_https():
+    from pylons import config
+    return toolkit.asbool(config.get('ckanext-archiver.verify_https', True))
 
 
 def _clean_content_type(ct):
@@ -489,6 +535,7 @@ def _set_user_agent_string(headers):
     Update the passed headers object with a `User-Agent` key, if there is a
     USER_AGENT_STRING option in settings.
     '''
+    from ckanext.archiver import default_settings as settings
     ua_str = settings.USER_AGENT_STRING
     if ua_str is not None:
         headers['User-Agent'] = ua_str
@@ -526,8 +573,9 @@ def tidy_url(url):
     except urllib3.exceptions.LocationParseError, e:
         raise LinkInvalidError('URL parsing failure: %s' % e)
 
-    # Check we aren't using any schemes we shouldn't be
-    if not parsed_url.scheme in ALLOWED_SCHEMES:
+    # Check we aren't using any schemes we shouldn't be.
+    # Scheme is case-insensitive.
+    if not parsed_url.scheme or not parsed_url.scheme.lower() in ALLOWED_SCHEMES:
         raise LinkInvalidError('Invalid url scheme. Please use one of: %s' %
                                ' '.join(ALLOWED_SCHEMES))
 
@@ -606,6 +654,8 @@ def save_archival(resource, status_id, reason, url_redirected_to,
         archival.size = download_result['size']
         archival.mimetype = download_result['mimetype']
         archival.hash = download_result['hash']
+        archival.etag = download_result['headers'].get('etag')
+        archival.last_modified = download_result['headers'].get('last-modified')
 
     # History
     if archival.is_broken is False:

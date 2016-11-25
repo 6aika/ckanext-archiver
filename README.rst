@@ -2,8 +2,8 @@
    these badges work. The necessary Travis and Coverage config files have been
    generated for you.
 
-.. image:: https://travis-ci.org/datagovuk/ckanext-archiver.svg?branch=master
-    :target: https://travis-ci.org/datagovuk/ckanext-archiver
+.. image:: https://travis-ci.org/ckan/ckanext-archiver.svg?branch=master
+    :target: https://travis-ci.org/ckan/ckanext-archiver
 
 =============
 ckanext-archiver
@@ -132,6 +132,16 @@ NB Previously you needed both ckanext-archiver and ckanext-qa to see the broken 
 
      python ckanext/archiver/bin/migrate_task_status.py --write production.ini
 
+Migrations post 2.0
+-------------------
+
+Over time it is possible that the database structure will change.  In these cases you can use the migrate command to update the database schema.
+
+    ::
+        paster --plugin=ckanext-archiver archiver migrate -c <path to CKAN ini file>
+
+This is only necessary if you update ckanext-archiver and already have the database tables in place.
+
 
 Installing a Celery queue backend
 ---------------------------------
@@ -237,6 +247,7 @@ Config settings
       * ``ckanext-archiver.cache_url_root`` = URL where you will be publicly serving the cached files stored locally at ckanext-archiver.archive_dir.
       * ``ckanext-archiver.max_content_length`` = the maximum size (in bytes) of files to archive (default ``50000000`` =50MB)
       * ``ckanext-archiver.user_agent_string`` = identifies the archiver to servers it archives from
+      * ``ckanext-archiver.verify_https`` = true/false whether you want to verify https connections and therefore fail if it is specified in the URL but does not verify.
 
 4.  Nightly report generation
 
@@ -259,16 +270,17 @@ Config settings
                 root /www/resource_cache;
             }
 
-Legacy settings:
+Legacy settings
+~~~~~~~~~~~~~~~
 
-   Older versions of ckanext-archiver put these settings in
-   ckanext/archiver/settings.py as variables ARCHIVE_DIR and MAX_CONTENT_LENGTH
-   but this is deprecated as of ckanext-archiver 2.0.
+Older versions of ckanext-archiver put these settings in
+ckanext/archiver/settings.py as variables ARCHIVE_DIR and MAX_CONTENT_LENGTH
+but this is no longer available.
 
-   There used to be an option DATA_FORMATS for filtering the resources
-   archived, but that has now been removed in ckanext-archiver v2.0, since it
-   is now not only caching files, but is seen as a broken link checker, which
-   applies whatever the format.
+There used to be an option DATA_FORMATS for filtering the resources
+archived, but that has now been removed in ckanext-archiver v2.0, since it
+is now not only caching files, but is seen as a broken link checker, which
+applies whatever the format.
 
 
 Using Archiver
@@ -322,6 +334,20 @@ To run the tests:
 3. From the CKAN root directory (not the extension root) do::
 
     (pyenv)~/pyenv/src/ckan$ nosetests --ckan ../ckanext-archiver/tests/ --with-pylons=../ckanext-archiver/test-core.ini
+
+
+Building Debian package
+-----------------------
+
+NB this attempt at creating a Debian package is experimental. Important package dependencies have yet to specified. The outstanding issue is that some dependencies do not exist as debian packages (eg: messytables).
+
+To build the debian package::
+
+    cd ckanext-archiver; dpkg-buildpackage -us -uc -i -I -rfakeroot
+
+To list the package contents::
+
+    dpkg --contents ../python-ckanext-archiver_0.1-1_all.deb
 
 
 Questions

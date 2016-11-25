@@ -15,6 +15,7 @@ cd ckan
 export ckan_branch=master
 echo "CKAN branch: $ckan_branch"
 git checkout $ckan_branch
+echo "CKAN commit: "`git rev-parse HEAD`
 python setup.py develop
 pip install -r requirements.txt --allow-all-external
 pip install -r dev-requirements.txt --allow-all-external
@@ -28,6 +29,12 @@ echo "Initialising the database..."
 cd ckan
 paster db init -c test-core.ini
 cd -
+
+echo "SOLR config..."
+# solr is multicore for tests on ckan master now, but it's easier to run tests
+# on Travis single-core still.
+# see https://github.com/ckan/ckan/issues/2972
+sed -i -e 's/solr_url.*/solr_url = http:\/\/127.0.0.1:8983\/solr/' ckan/test-core.ini
 
 echo "Installing dependency ckanext-report and its requirements..."
 pip install -e git+https://github.com/datagovuk/ckanext-report.git#egg=ckanext-report
