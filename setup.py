@@ -60,7 +60,7 @@ setup(
     packages=find_packages(exclude=['contrib', 'docs', 'tests*']),
 
     install_requires=[
-        'celery',
+        'celery==3.1.16',
         'kombu',
         'SQLAlchemy',
         'requests',
