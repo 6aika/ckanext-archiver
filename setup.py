@@ -60,10 +60,10 @@ setup(
     packages=find_packages(exclude=['contrib', 'docs', 'tests*']),
 
     install_requires=[
-        'celery==3.1.16',
-        'kombu===3.0.32',
-        'SQLAlchemy',
-        'requests',
+        'celery',
+        'kombu',
+        'SQLAlchemy>=0.6.6',
+        'requests>=1.1.0',
         'progressbar',
         'ckanext-report'
     ],
