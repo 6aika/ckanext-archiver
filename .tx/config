@@ -1,0 +1,10 @@
+[main]
+host = https://www.transifex.com
+
+[sixodp.ckanext-archiver]
+file_filter = ckanext/archiver/i18n/<lang>/LC_MESSAGES/ckanext.archiver.po
+minimum_perc = 0
+source_file = ckanext/archiver/i18n/ckanext-archiver.pot
+source_lang = en
+type = PO
+
