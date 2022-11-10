@@ -12,7 +12,6 @@ from ckan.lib.cli import CkanCommand
 standard_library.install_aliases()  # noqa
 
 
-
 class CeleryCmd(CkanCommand):
     '''
     Manages the Celery daemons. This is an improved version of CKAN core's
