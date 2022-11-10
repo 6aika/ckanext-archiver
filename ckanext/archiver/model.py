@@ -1,3 +1,6 @@
+import itertools
+from builtins import str
+from builtins import object
 import uuid
 from datetime import datetime
 
@@ -6,7 +9,6 @@ from sqlalchemy import types
 from sqlalchemy.ext.declarative import declarative_base
 
 import ckan.model as model
-import ckan.plugins as p
 
 from ckan.lib import dictization
 
@@ -16,7 +18,7 @@ Base = declarative_base()
 
 
 def make_uuid():
-    return unicode(uuid.uuid4())
+    return str(uuid.uuid4())
 
 
 metadata = MetaData()
@@ -25,7 +27,7 @@ metadata = MetaData()
 # enum of all the archival statuses (singleton)
 # NB Be very careful changing these status strings. They are also used in
 # ckanext-qa tasks.py.
-class Status:
+class Status(object):
     _instance = None
 
     def __init__(self):
@@ -46,10 +48,10 @@ class Status:
             22: 'Download failure',
             23: 'System error during archival',
         }
-        self._by_id = dict(not_broken, **broken)
+        self._by_id = dict(itertools.chain(not_broken.items(), broken.items()))
         self._by_id.update(not_sure)
         self._by_text = dict((value, key)
-                             for key, value in self._by_id.iteritems())
+                             for key, value in self._by_id.items())
 
     @classmethod
     def instance(cls):
@@ -148,18 +150,9 @@ class Archival(Base):
     @classmethod
     def create(cls, resource_id):
         c = cls()
+        resource = model.Resource.get(resource_id)
         c.resource_id = resource_id
-
-        # Find the package_id for the resource.
-        dataset = model.Session.query(model.Package)
-        if p.toolkit.check_ckan_version(max_version='2.2.99'):
-            # earlier CKANs had ResourceGroup
-            dataset = dataset.join(model.ResourceGroup)
-        dataset = dataset \
-            .join(model.Resource) \
-            .filter_by(id=resource_id) \
-            .one()
-        c.package_id = dataset.id
+        c.package_id = resource.package_id
         return c
 
     @property
