@@ -230,7 +230,7 @@ msgstr "% rikkinäisiä linkkejä"
 
 #: ckanext/archiver/templates/report/broken_links.html:40
 msgid "Dataset"
-msgstr "Data"
+msgstr "Tietoaineisto"
 
 #: ckanext/archiver/templates/report/broken_links.html:41
 msgid "Notes"
