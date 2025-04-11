@@ -211,7 +211,7 @@ msgstr "Lisenssi"
 #: ckanext/archiver/templates/report/broken_links.html:14
 #: ckanext/archiver/templates/report/broken_links.html:34
 msgid "Broken datasets"
-msgstr "Rikkinäiset datat"
+msgstr "Rikkinäiset tietoaineistot"
 
 #: ckanext/archiver/templates/report/broken_links.html:4
 #: ckanext/archiver/templates/report/broken_links.html:15
