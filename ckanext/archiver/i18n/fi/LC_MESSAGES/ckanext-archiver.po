@@ -138,8 +138,8 @@ msgid ""
 "We do not have a past record of it working since the first check: "
 "%(created)s"
 msgstr ""
-"Meillä ei ole tiedossa että resurssi olisi toiminut ensimmäisen tarkistuksen"
-" jälkeen: %(created)s"
+"Meillä ei ole tiedossa, että resurssi olisi toiminut ensimmäisen "
+"tarkistuksen jälkeen: %(created)s"
 
 #: ckanext/archiver/templates/archiver/is_resource_broken.html:53
 msgid "Link check is not conclusive"
