@@ -108,7 +108,7 @@ msgstr "Virhe pyynnössä: %s"
 #: ckanext/archiver/tasks.py:1000
 #, python-format
 msgid "Server returned HTTP error status: %s %s"
-msgstr "Palvelin palautti HTTP virhekoodin: %s%s"
+msgstr "Palvelin palautti HTTP-virhekoodin: %s%s"
 
 #: ckanext/archiver/templates/archiver/is_resource_broken.html:38
 msgid "Link is broken"
