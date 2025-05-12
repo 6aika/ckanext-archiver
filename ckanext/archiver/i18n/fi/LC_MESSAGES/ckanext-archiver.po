@@ -6,6 +6,7 @@
 # 
 # Translators:
 # Zharktas <jari-pekka.voutilainen@gofore.com>, 2025
+# Hami Kekkonen <hami.kekkonen@hel.fi>, 2025
 # 
 #, fuzzy
 msgid ""
@@ -14,7 +15,7 @@ msgstr ""
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
 "POT-Creation-Date: 2019-12-12 09:53+0000\n"
 "PO-Revision-Date: 2025-02-27 07:48+0000\n"
-"Last-Translator: Zharktas <jari-pekka.voutilainen@gofore.com>, 2025\n"
+"Last-Translator: Hami Kekkonen <hami.kekkonen@hel.fi>, 2025\n"
 "Language-Team: Finnish (https://app.transifex.com/6aika-dataportal/teams/68018/fi/)\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -32,7 +33,7 @@ msgstr "Sisällön pituus %s ylittää sallitun maksimiarvon %s"
 #: ckanext/archiver/tasks.py:520
 #, python-format
 msgid "Server content contained an API error message: %s"
-msgstr "Palvelin palautti API virheviestin: %s"
+msgstr "Palvelin palautti API-virheviestin: %s"
 
 #: ckanext/archiver/tasks.py:542
 #, python-format
