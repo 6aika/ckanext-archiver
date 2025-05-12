@@ -124,8 +124,8 @@ msgid ""
 "This resource has failed %(failure_count)s times in a row since it first "
 "failed: %(first_failure)s"
 msgstr ""
-"Tämä resurssi on ollut viallinen %(failure_count)skertaa putkeen sen jälkeen"
-" kun se ensimmäisen kerran vikaantui %(first_failure)s"
+"Tämä resurssi on ollut viallinen %(failure_count)skertaa putkeen sen "
+"jälkeen, kun se ensimmäisen kerran vikaantui %(first_failure)s"
 
 #: ckanext/archiver/templates/archiver/is_resource_broken.html:48
 #, python-format
