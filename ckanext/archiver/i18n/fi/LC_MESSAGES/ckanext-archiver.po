@@ -93,7 +93,7 @@ msgstr "Virheellinen URL tai uudelleenohjauslinkitys"
 
 #: ckanext/archiver/tasks.py:981
 msgid "Could not make HEAD request"
-msgstr "Ei pystytty tekemään HEAD -pyyntöä"
+msgstr "Ei pystytty tekemään HEAD-pyyntöä"
 
 #: ckanext/archiver/tasks.py:991
 #, python-format
