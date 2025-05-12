@@ -263,7 +263,7 @@ msgstr "Epäonnistuneiden latausyritysten lukumäärä"
 
 #: ckanext/archiver/templates/report/broken_links.html:49
 msgid "No. of fails"
-msgstr "Virhe lkm."
+msgstr "Virheiden lkm"
 
 #: ckanext/archiver/templates/report/broken_links.html:50
 msgid "First failed attempt"
